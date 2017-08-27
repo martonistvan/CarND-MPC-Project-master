@@ -1,4 +1,4 @@
-#include <math.h>
+	#include <math.h>
 #include <uWS/uWS.h>
 #include <chrono>
 #include <iostream>
@@ -125,6 +125,21 @@ int main() {
           next_x_vals.clear();
           next_y_vals.clear();
 
+          //running vehicle model for the duration of latency
+          if(latency > 0.){
+        	  px = px + v * cos(psi) * latency;
+        	  py = py + v * sin(psi) * latency;
+        	  psi = psi + v * curr_delta * latency / Lf;
+        	  //epsi = epsi + psi;
+        	  //cte = cte + v * sin(epsi) * latency;
+        	  v = v + curr_a * latency;
+        	  /*state[0] = state[0] + state[3] * cos(state[2]) * latency;
+                  	  state[1] = state[1] + state[3] * sin(state[2]) * latency;
+                  	  state[2] = state[2] + state[3] * curr_delta / Lf * latency;
+                  	  state[3] = state[3] + curr_a * latency;*/
+        	  //state << px, py, psi, v, 0., 0.;
+          }
+
           //convert waypoints from map to car coordinates
 
           for(unsigned int i = 0; i < ptsx.size(); i++) {
@@ -147,19 +162,32 @@ int main() {
           coeffs = polyfit(t_ptsx, t_ptsy, 3);
 
 
-          //running vehicle model for the duration of latency
+          //calculate the cross track error
+          //state[4] = polyeval(coeffs, state[0]) - state[1];
+          double cte = polyeval(coeffs,0);
 
-          if(latency > 0.){
+          //calculate the orientation error
+          //state[5] = state[2] - atan(coeffs[1]);
+          double epsi = -atan(coeffs[1]);
+
+          state << 0., 0., 0., v, cte, epsi;
+
+          /*if(latency > 0.){
+        	  double delta = j[1]["steering_angle"];
+        	  delta *= 1;
+        	  double a = j[1]["throttle"];
+        	  px = v * cos(psi) * latency;
+        	  py = v * sin(psi) * latency;
+        	  psi = v * curr_delta * latency / Lf;
+        	  epsi = epsi + psi;
+        	  cte = cte + v * sin(epsi) * latency;
+        	  v = v + curr_a * latency;
         	  state[0] = state[0] + state[3] * cos(state[2]) * latency;
         	  state[1] = state[1] + state[3] * sin(state[2]) * latency;
         	  state[2] = state[2] + state[3] * curr_delta / Lf * latency;
         	  state[3] = state[3] + curr_a * latency;
-          }
-
-          //calculate the cross track error
-          state[4] = polyeval(coeffs, state[0]) - state[1];
-          //calculate the orientation error
-          state[5] = state[2] - atan(coeffs[1]);
+        	  state << px, py, psi, v, cte, epsi;
+          }*/
 
           //run optimizer
           auto vars = mpc.Solve(state, coeffs);
